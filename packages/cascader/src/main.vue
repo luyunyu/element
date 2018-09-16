@@ -33,7 +33,7 @@
       :class="{ 'is-focus': menuVisible }"
     >
       <template slot="suffix">
-        <i> 测试修改是否生效 <i/>
+        <i> 测试修改是否生效 </i>
         <i
           key="1"
           v-if="clearable && inputHover && currentLabels.length"
