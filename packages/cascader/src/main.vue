@@ -170,6 +170,11 @@ export default {
     hoverThreshold: {
       type: Number,
       default: 500
+    },
+    doFilter: Function,
+    showMax: {
+      type: Number,
+      default: 50
     }
   },
 
@@ -250,7 +255,7 @@ export default {
           this.initMenu();
         }
         this.flatOptions = this.flattenOptions(this.options);
-        this.menu.options = value;
+        this.menu.options = this.sliceOptions(value);
       }
     }
   },
@@ -258,7 +263,7 @@ export default {
   methods: {
     initMenu() {
       this.menu = new Vue(ElCascaderMenu).$mount();
-      this.menu.options = this.options;
+      this.menu.options = this.sliceOptions(this.options);
       this.menu.props = this.props;
       this.menu.expandTrigger = this.expandTrigger;
       this.menu.changeOnSelect = this.changeOnSelect;
@@ -278,7 +283,7 @@ export default {
 
       this.menu.value = this.currentValue.slice(0);
       this.menu.visible = true;
-      this.menu.options = this.options;
+      this.menu.options = this.sliceOptions(this.options);
       this.$nextTick(_ => {
         this.updatePopper();
         this.menu.inputWidth = this.$refs.input.$el.offsetWidth - 2;
@@ -327,39 +332,46 @@ export default {
         this.$nextTick(this.updatePopper);
       }
     },
+    sliceOptions(options) {
+      return options.length > this.showMax ? options.slice(0, this.showMax) : options;
+    },
     handleInputChange(value) {
       if (!this.menuVisible) return;
       const flatOptions = this.flatOptions;
 
       if (!value) {
-        this.menu.options = this.options;
+        this.menu.options = this.sliceOptions(this.options);
         this.$nextTick(this.updatePopper);
         return;
       }
 
-      let filteredFlatOptions = flatOptions.filter(optionsStack => {
-        return optionsStack.some(option => new RegExp(escapeRegexpString(value), 'i')
-          .test(option[this.labelKey]));
-      });
-
-      if (filteredFlatOptions.length > 0) {
-        filteredFlatOptions = filteredFlatOptions.map(optionStack => {
-          return {
-            __IS__FLAT__OPTIONS: true,
-            value: optionStack.map(item => item[this.valueKey]),
-            label: this.renderFilteredOptionLabel(value, optionStack),
-            disabled: optionStack.some(item => item[this.disabledKey])
-          };
-        });
+      if (this.doFilter) {
+        this.menu.options = this.sliceOptions(this.doFilter(value, this.options));
       } else {
-        filteredFlatOptions = [{
-          __IS__FLAT__OPTIONS: true,
-          label: this.t('el.cascader.noMatch'),
-          value: '',
-          disabled: true
-        }];
+        let filteredFlatOptions = flatOptions.filter(optionsStack => {
+          return optionsStack.some(option => new RegExp(escapeRegexpString(value), 'i')
+            .test(option[this.labelKey]));
+        });
+
+        if (filteredFlatOptions.length > 0) {
+          filteredFlatOptions = filteredFlatOptions.map(optionStack => {
+            return {
+              __IS__FLAT__OPTIONS: true,
+              value: optionStack.map(item => item[this.valueKey]),
+              label: this.renderFilteredOptionLabel(value, optionStack),
+              disabled: optionStack.some(item => item[this.disabledKey])
+            };
+          });
+        } else {
+          filteredFlatOptions = [{
+            __IS__FLAT__OPTIONS: true,
+            label: this.t('el.cascader.noMatch'),
+            value: '',
+            disabled: true
+          }];
+        }
+        this.menu.options = this.sliceOptions(filteredFlatOptions);
       }
-      this.menu.options = filteredFlatOptions;
       this.$nextTick(this.updatePopper);
     },
     renderFilteredOptionLabel(inputValue, optionsStack) {
